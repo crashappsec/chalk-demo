@@ -1,0 +1,60 @@
+name: deploy
+
+permissions:
+  id-token: write # for aws role
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+  workflow_call:
+
+jobs:
+  lambda:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Setup Chalk
+        uses: crashappsec/setup-chalk-action@main
+        with:
+          load: https://chalkdust.io/connect.c4m
+          token: ${{ secrets.CHALK_TOKEN }}
+
+      - name: Assume AWS Role
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: GithubDeploy
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          provenance: false
+          context: .
+          tags: ${{ secrets.AWS_ECR_IMAGE }}:latest
+
+      - name: Redeploy Lambda
+        run: |
+          aws lambda update-function-code \
+              --function-name ${{ secrets.AWS_LAMBDA_NAME }} \
+              --image-uri ${{ secrets.AWS_ECR_IMAGE}}:latest
+          aws lambda wait function-updated \
+              --function-name ${{ secrets.AWS_LAMBDA_NAME }}
+
+      - name: Invoke Lambda
+        run: |
+          aws lambda invoke \
+            --function-name=${{ secrets.AWS_LAMBDA_NAME }} \
+            /dev/stdout
