@@ -26,6 +26,9 @@ jobs:
         with:
           load: https://chalkdust.io/connect.c4m
           token: ${{ secrets.CHALK_TOKEN }}
+          password: ${{ secrets.CHALK_PASSWORD }}
+          public_key: ${{ secrets.CHALK_PUBLIC_KEY }}
+          private_key: ${{ secrets.CHALK_PRIVATE_KEY }}
 
       - name: Assume AWS Role
         uses: aws-actions/configure-aws-credentials@v2
