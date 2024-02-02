@@ -57,9 +57,3 @@ jobs:
               --image-uri ${{ secrets.AWS_ECR_IMAGE}}:latest
           aws lambda wait function-updated \
               --function-name ${{ secrets.AWS_LAMBDA_NAME }}
-
-      - name: Invoke Lambda
-        run: |
-          aws lambda invoke \
-            --function-name=${{ secrets.AWS_LAMBDA_NAME }} \
-            /dev/stdout
