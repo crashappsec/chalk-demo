@@ -24,8 +24,6 @@ jobs:
       - name: Setup Chalk
         uses: crashappsec/setup-chalk-action@main
         with:
-          # until https://github.com/crashappsec/chalk/pull/184 is released
-          version: cecbf150e2fe0df7a813a8c4cb2923ba62b1fe40
           load: https://chalkdust.io/connect.c4m
           token: ${{ secrets.CHALK_TOKEN }}
           password: ${{ secrets.CHALK_PASSWORD }}
