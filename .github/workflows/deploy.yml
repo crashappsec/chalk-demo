@@ -9,6 +9,12 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      invoke:
+        description: Invoke function after its deployed?
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   lambda:
@@ -27,27 +33,60 @@ jobs:
           connect: true
 
       - name: Assume AWS Role
+        id: role
         uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 #v2
         with:
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: us-east-1
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           role-session-name: GithubDeploy
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 #v2.0.1
+        env:
+          AWS_REGION: us-east-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 #v2.0.1
+        env:
+          AWS_REGION: us-west-2
 
       - name: Push
         uses: docker/build-push-action@v5
         with:
           push: true
-          provenance: false
+          provenance: false # not supported by lambda
+          sbom: false # not supported by lambda
           context: .
-          tags: ${{ secrets.AWS_ECR_IMAGE }}:latest
+          # lambda requires ECR to be in same region as lambda so pushing to every region
+          tags: |
+            ${{ steps.role.outputs.aws-account-id }}.dkr.ecr.us-east-1.amazonaws.com/${{ secrets.AWS_ECR_IMAGE }}
+            ${{ steps.role.outputs.aws-account-id }}.dkr.ecr.us-west-2.amazonaws.com/${{ secrets.AWS_ECR_IMAGE }}
 
       - name: Redeploy Lambda
         run: |
           aws lambda update-function-code \
+              --region us-east-1 \
               --function-name ${{ secrets.AWS_LAMBDA_NAME }} \
-              --image-uri ${{ secrets.AWS_ECR_IMAGE}}:latest
+              --image-uri ${{ steps.role.outputs.aws-account-id }}.dkr.ecr.us-east-1.amazonaws.com/${{ secrets.AWS_ECR_IMAGE }}:latest
+          aws lambda update-function-code \
+              --region us-west-2 \
+              --function-name ${{ secrets.AWS_LAMBDA_NAME }} \
+              --image-uri ${{ steps.role.outputs.aws-account-id }}.dkr.ecr.us-west-2.amazonaws.com/${{ secrets.AWS_ECR_IMAGE }}:latest
           aws lambda wait function-updated \
+              --region us-east-1 \
               --function-name ${{ secrets.AWS_LAMBDA_NAME }}
+          aws lambda wait function-updated \
+              --region us-west-2 \
+              --function-name ${{ secrets.AWS_LAMBDA_NAME }}
+
+      - name: Invoke Lambda
+        if: inputs.invoke || github.event_name == 'push'
+        run: |
+          aws lambda invoke \
+            --region us-east-1 \
+            --function-name=${{ secrets.AWS_LAMBDA_NAME }} \
+            /dev/stdout
+          aws lambda invoke \
+            --region us-west-2 \
+            --function-name=${{ secrets.AWS_LAMBDA_NAME }} \
+            /dev/stdout
