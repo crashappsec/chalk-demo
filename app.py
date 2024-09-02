@@ -1,7 +1,7 @@
 import time
 
 
-def handler(event, context):
+def handler(event, _):
     time.sleep(event.get("sleep", 1))
     return {
         "statusCode": 200,
