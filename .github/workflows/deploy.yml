@@ -50,6 +50,16 @@ jobs:
         env:
           AWS_REGION: us-west-2
 
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 #v2.0.1
+        env:
+          AWS_REGION: us-west-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 #v2.0.1
+        env:
+          AWS_REGION: us-east-2
+
       - name: Push
         uses: docker/build-push-action@v5
         with:
@@ -61,6 +71,8 @@ jobs:
           tags: |
             ${{ steps.role.outputs.aws-account-id }}.dkr.ecr.us-east-1.amazonaws.com/${{ secrets.AWS_ECR_IMAGE }}
             ${{ steps.role.outputs.aws-account-id }}.dkr.ecr.us-west-2.amazonaws.com/${{ secrets.AWS_ECR_IMAGE }}
+            ${{ steps.role.outputs.aws-account-id }}.dkr.ecr.us-west-1.amazonaws.com/${{ secrets.AWS_ECR_IMAGE }}
+            ${{ steps.role.outputs.aws-account-id }}.dkr.ecr.us-east-2.amazonaws.com/${{ secrets.AWS_ECR_IMAGE }}
 
       - name: Redeploy Lambda
         run: |
@@ -72,11 +84,25 @@ jobs:
               --region us-west-2 \
               --function-name ${{ secrets.AWS_LAMBDA_NAME }} \
               --image-uri ${{ steps.role.outputs.aws-account-id }}.dkr.ecr.us-west-2.amazonaws.com/${{ secrets.AWS_ECR_IMAGE }}:latest
+          aws lambda update-function-code \
+              --region us-west-1 \
+              --function-name ${{ secrets.AWS_LAMBDA_NAME }} \
+              --image-uri ${{ steps.role.outputs.aws-account-id }}.dkr.ecr.us-west-1.amazonaws.com/${{ secrets.AWS_ECR_IMAGE }}:latest
+          aws lambda update-function-code \
+              --region us-east-2 \
+              --function-name ${{ secrets.AWS_LAMBDA_NAME }} \
+              --image-uri ${{ steps.role.outputs.aws-account-id }}.dkr.ecr.us-east-2.amazonaws.com/${{ secrets.AWS_ECR_IMAGE }}:latest
           aws lambda wait function-updated \
               --region us-east-1 \
               --function-name ${{ secrets.AWS_LAMBDA_NAME }}
           aws lambda wait function-updated \
               --region us-west-2 \
+              --function-name ${{ secrets.AWS_LAMBDA_NAME }}
+          aws lambda wait function-updated \
+              --region us-west-1 \
+              --function-name ${{ secrets.AWS_LAMBDA_NAME }}
+          aws lambda wait function-updated \
+              --region us-east-2 \
               --function-name ${{ secrets.AWS_LAMBDA_NAME }}
 
       - name: Invoke Lambda
@@ -88,5 +114,13 @@ jobs:
             /dev/stdout
           aws lambda invoke \
             --region us-west-2 \
+            --function-name=${{ secrets.AWS_LAMBDA_NAME }} \
+            /dev/stdout
+          aws lambda invoke \
+            --region us-west-1 \
+            --function-name=${{ secrets.AWS_LAMBDA_NAME }} \
+            /dev/stdout
+          aws lambda invoke \
+            --region us-east-2 \
             --function-name=${{ secrets.AWS_LAMBDA_NAME }} \
             /dev/stdout
