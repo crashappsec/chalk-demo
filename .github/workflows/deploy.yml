@@ -15,6 +15,11 @@ on:
         required: false
         default: true
         type: boolean
+      chalk_testing:
+        description: Use chalk test environment (for internal testing only)?
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   lambda:
@@ -29,6 +34,8 @@ jobs:
 
       - name: Setup Chalk
         uses: crashappsec/setup-chalk-action@main
+        env:
+          __CHALK_TESTING__: ${{ inputs.chalk_testing && 'true' || '' }}
         with:
           connect: true
 
